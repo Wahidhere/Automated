@@ -1,0 +1,44 @@
+
+name: Test
+
+on: [push, workflow_dispatch]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 19
+          cache: npm
+
+      # Install your project packages & dependencies here
+      # [..]
+
+      # Install Testmo CLI tool locally (then use npx testmo .. to run it)
+      - run: npm install --no-save @testmo/testmo-cli
+
+      # Optionally add a couple of fields such as the git hash and link to the build
+      - run: |
+          npx testmo automation:resources:add-field --name git --type string \
+            --value ${GITHUB_SHA:0:7} --resources resources.json
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          npx testmo automation:resources:add-link --name build \
+            --url $RUN_URL --resources resources.json
+
+      # Run automated tests and report results to Testmo
+      - run: |
+          npx testmo automation:run:submit \
+            --instance "$TESTMO_URL" \
+            --project-id 1 \
+            --name "Test run" \
+            --source "frontend" \
+            --resources resources.json \
+            --results results/*.xml \
+            -- <your-test-command> # Run your automation tool; note space after --
+        env:
+          TESTMO_URL: ${{ secrets.TESTMO_URL }}
+          TESTMO_TOKEN: ${{ secrets.TESTMO_TOKEN }}
